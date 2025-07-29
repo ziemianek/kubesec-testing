@@ -1,0 +1,19 @@
+name: KubeSec Scan
+
+on:
+  pull_request:
+    types: [edited]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Run kubesec scanner
+        run: curl -sSX POST --data-binary @"file.yaml" https://v2.kubesec.io/scan | jq .
+        # uses: controlplaneio/kubesec-action@main
+        # with:
+        #   input: file.yaml
