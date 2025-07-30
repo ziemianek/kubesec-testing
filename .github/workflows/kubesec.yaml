@@ -39,11 +39,12 @@ jobs:
         shell: bash
         run: |
           filtered_files=()
-          
+
           for file in $ALL_CHANGED_FILES; do
             if grep -qE '^\s*apiVersion:' "$file" && grep -qE '^\s*kind:' "$file"; then
               filtered_files+=("$file")
               any_changed="true"
+              echo "Added \`$file\`"
             else
               echo "Skipped \`$file\` (not a Kubernetes manifest)"
             fi
