@@ -24,8 +24,8 @@ jobs:
         #   input: file.yaml
         #   exit-code: "0"
         run: |
-          RESPONSE=(curl -sSX POST --data-binary @"file.yaml" https://v2.kubesec.io/scan)
-          echo "$RESPONSE" > comment.md
+          output=$(curl -sSX POST --data-binary @file.yaml https://v2.kubesec.io/scan)
+          echo $output > comment.md
 
       - name: Comment results
         uses: mshick/add-pr-comment@v2
