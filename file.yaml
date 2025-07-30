@@ -8,3 +8,7 @@ spec:
     image: gcr.io/google-samples/node-hello:1.0
     securityContext:
       readOnlyRootFilesystem: true
+      # uncomment to fail the KubeSec check
+      capabilities:
+        add:
+        - SYS_ADMIN
