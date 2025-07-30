@@ -39,9 +39,12 @@ jobs:
           fi
 
           echo "" >> comment.md
-          echo "\`\`\`json" >> comment.md
+          echo "<details>" >> comment.md
+          echo "<summary>📄 See the details</summary>" >> comment.md
+          echo "<pre>" >> comment.md
           echo "$RESPONSE" | jq '.' >> comment.md
-          echo "\`\`\`" >> comment.md
+          echo "</pre>" >> comment.md
+          echo "</details>" >> comment.md
 
           # Exit with 1 if check failed
           if [[ "$SCORE" -lt 0 ]]; then
