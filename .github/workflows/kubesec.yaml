@@ -3,7 +3,6 @@ name: KubeSec Scan
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
-  workflow_dispatch:
 
 jobs:
   lint:
@@ -20,52 +19,86 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install jq
-        run: sudo apt-get install -y jq
+      - name: Get all changed yaml files
+        id: changed-files
+        # https://github.com/marketplace/actions/changed-files?version=v46.0.5
+        uses: tj-actions/changed-files@6cb76d07bee4c9772c6882c06c37837bf82a04d3 # v46.0.5
+        with:
+          # To compare changes between the current commit and the last pushed remote commit set `since_last_remote_commit: true`. e.g
+          # since_last_remote_commit: true
+  
+          # Avoid using single or double quotes for multiline patterns
+          files: |
+            **/**.yaml
+            **/**.yml
 
       - name: Build local KubeSec image
+        if: steps.changed-files.outputs.any_changed == 'true'
+        # mozna by raz zbudowac obraz i go uzywac np. pobierajac z artifactory?
+        shell: bash
         run: |
           git clone https://github.com/controlplaneio/kubesec.git
           cd kubesec
           docker build -t kubesec:local .
           docker run -d -p 8080:8080 kubesec:local http 8080
 
-      - name: Run KubeSec scanner
+      - name: Install jq
+        if: steps.changed-files.outputs.any_changed == 'true'
+        shell: bash
+        run: sudo apt-get install -y jq
+
+      - name: Scan Kubernetes manifests
+        if: steps.changed-files.outputs.any_changed == 'true'
+        env:
+          ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        shell: bash
         run: |
-          echo "### 🛡️ KubeSec Results for \`file.yaml\`" > comment.md
-
-          RESPONSE=$(curl -sSX POST --data-binary @file.yaml http://localhost:8080/scan)
-
-          MESSAGE=$(echo "$RESPONSE" | jq -r '.[0].message')
-          SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
-
-          if [[ "$SCORE" -ge 0 ]]; then
-          echo "✅ **KubeSec check passed** - $MESSAGE" >> comment.md
-          else
-          echo "❌ **KubeSec check failed** - $MESSAGE" >> comment.md
-          fi
-
+          echo "### 🛡️ KubeSec Results" > comment.md
           echo "" >> comment.md
-          echo "<details>" >> comment.md
-          echo "<summary>📄 See the details</summary>" >> comment.md
-          echo "<pre>" >> comment.md
-          echo "$RESPONSE" | jq '.' >> comment.md
-          echo "</pre>" >> comment.md
-          echo "</details>" >> comment.md
+          HAS_FAILURE=0
 
-          # Exit with 1 if check failed
-          if [[ "$SCORE" -lt 0 ]]; then
-          exit 1
+          for file in $ALL_CHANGED_FILES; do
+            if ! grep -qE '^\s*apiVersion:' "$file" || ! grep -qE '^\s*kind:' "$file"; then
+              echo "ℹ️ Skipping \`$file\` (not a Kubernetes manifest)"
+              continue
+            fi
+
+            RESPONSE=$(curl -sSX POST --data-binary @"$file" http://localhost:8080/scan)
+            MESSAGE=$(echo "$RESPONSE" | jq -r '.[0].message')
+            SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
+
+            if [[ "$SCORE" -ge 0 ]]; then
+              echo "✅ \`$file\` - $MESSAGE" >> comment.md
+            else
+              echo "❌ \`$file\` - $MESSAGE" >> comment.md
+              HAS_FAILURE=1
+            fi
+
+            echo "" >> comment.md
+            echo "<details>" >> comment.md
+            echo "<summary>📄 See full result</summary>" >> comment.md
+            echo "<pre>" >> comment.md
+            echo "$RESPONSE" | jq '.' >> comment.md
+            echo "</pre>" >> comment.md
+            echo "</details>" >> comment.md
+            echo "" >> comment.md
+            echo "---" >> comment.md
+
+          done
+
+          if [[ "$HAS_FAILURE" -eq 1 ]]; then
+            exit 1
           fi
 
       - name: Comment results
         uses: mshick/add-pr-comment@v2
-        if: always()
+        if: steps.changed-files.outputs.any_changed == 'true'
         with:
           message-path: comment.md
 
       - name: Cleanup
-        if: always()
+        if: steps.changed-files.outputs.any_changed == 'true'
+        shell: bash
         run: |
           echo "Cleaning up KubeSec container..."
           CONTAINER_ID=$(docker ps -q --filter ancestor=kubesec:local)
