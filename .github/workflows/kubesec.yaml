@@ -19,16 +19,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Build local KubeSec image
-        run: |
-          git clone https://github.com/controlplaneio/kubesec.git
-          cd kubesec
-          docker build -t kubesec:local .
-          docker run -d -p 8080:8080 kubesec:local http 8080
-
       - name: Get all changed yaml files
         id: changed-files
         # https://github.com/marketplace/actions/changed-files?version=v46.0.5
@@ -42,10 +32,25 @@ jobs:
             **/**.yaml
             **/**.yml
 
-      - name: List all changed yaml files
+      - name: Build local KubeSec image
+        if: steps.changed-files.outputs.any_changed == 'true'
+        shell: bash
+        run: |
+          git clone https://github.com/controlplaneio/kubesec.git
+          cd kubesec
+          docker build -t kubesec:local .
+          docker run -d -p 8080:8080 kubesec:local http 8080
+
+      - name: Install jq
+        if: steps.changed-files.outputs.any_changed == 'true'
+        shell: bash
+        run: sudo apt-get install -y jq
+
+      - name: Scan Kubernetes manifests
         if: steps.changed-files.outputs.any_changed == 'true'
         env:
           ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        shell: bash
         run: |
           echo "### 🛡️ KubeSec Results" > comment.md
           echo "" >> comment.md
@@ -68,9 +73,10 @@ jobs:
               HAS_FAILURE=1
             fi
 
+            echo "---" >> comment.md
             echo "" >> comment.md
             echo "<details>" >> comment.md
-            echo "<summary>📄 See full scan result</summary>" >> comment.md
+            echo "<summary>📄 See full result</summary>" >> comment.md
             echo "<pre>" >> comment.md
             echo "$RESPONSE" | jq '.' >> comment.md
             echo "</pre>" >> comment.md
@@ -84,12 +90,13 @@ jobs:
 
       - name: Comment results
         uses: mshick/add-pr-comment@v2
-        if: always()
+        if: steps.changed-files.outputs.any_changed == 'true'
         with:
           message-path: comment.md
 
       - name: Cleanup
-        if: always()
+        if: steps.changed-files.outputs.any_changed == 'true'
+        shell: bash
         run: |
           echo "Cleaning up KubeSec container..."
           CONTAINER_ID=$(docker ps -q --filter ancestor=kubesec:local)
