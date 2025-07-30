@@ -13,13 +13,22 @@ jobs:
       actions: read
       contents: read
       security-events: write
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Run kubesec scanner
-        # run: curl -sSX POST --data-binary @"file.yaml" https://v2.kubesec.io/scan | jq .
-        uses: controlplaneio/kubesec-action@main
+        # uses: controlplaneio/kubesec-action@main
+        # with:
+        #   input: file.yaml
+        #   exit-code: "0"
+        run: |
+          output=$(curl -sSX POST --data-binary @file.yaml https://v2.kubesec.io/scan)
+          echo $output > comment.md
+
+      - name: Comment results
+        uses: mshick/add-pr-comment@v2
+        if: always()
         with:
-          input: file.yaml
-          exit-code: "0"
+          message-path: comment.md
