@@ -33,7 +33,6 @@ jobs:
             **/**.yml
 
       - name: Build local KubeSec image
-        if: steps.changed-files.outputs.any_changed == 'true'
         # mozna by raz zbudowac obraz i go uzywac np. pobierajac z artifactory?
         shell: bash
         run: |
@@ -43,12 +42,10 @@ jobs:
           docker run -d -p 8080:8080 kubesec:local http 8080
 
       - name: Install jq
-        if: steps.changed-files.outputs.any_changed == 'true'
         shell: bash
         run: sudo apt-get install -y jq
 
       - name: Scan Kubernetes manifests
-        if: steps.changed-files.outputs.any_changed == 'true'
         env:
           ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
         shell: bash
@@ -92,12 +89,10 @@ jobs:
 
       - name: Comment results
         uses: mshick/add-pr-comment@v2
-        if: steps.changed-files.outputs.any_changed == 'true'
         with:
           message-path: comment.md
 
       - name: Cleanup
-        if: steps.changed-files.outputs.any_changed == 'true'
         shell: bash
         run: |
           echo "Cleaning up KubeSec container..."
