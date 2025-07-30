@@ -2,13 +2,12 @@ name: KubeSec Scan
 
 on:
   pull_request:
-    types: [edited]
-
+    types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
 
 jobs:
-  lint:
-    name: Lint
+  kubesec:
+    name: KubeSec Scan
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
