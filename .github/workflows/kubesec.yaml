@@ -35,7 +35,8 @@ jobs:
         uses: tj-actions/changed-files@6cb76d07bee4c9772c6882c06c37837bf82a04d3 # v46.0.5
         with:
           # To compare changes between the current commit and the last pushed remote commit set `since_last_remote_commit: true`. e.g
-          since_last_remote_commit: true
+          # since_last_remote_commit: true
+  
           # Avoid using single or double quotes for multiline patterns
           files: |
             **/**.yaml
@@ -51,7 +52,7 @@ jobs:
           HAS_FAILURE=0
 
           for file in $ALL_CHANGED_FILES; do
-            if ! grep -qE 'apiVersion:|kind:' "$file"; then
+            if ! grep -qE '^\s*apiVersion:' "$file" || ! grep -qE '^\s*kind:' "$file"; then
               echo "ℹ️ Skipping \`$file\` (not a Kubernetes manifest)"
               continue
             fi
