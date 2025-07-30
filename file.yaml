@@ -7,7 +7,7 @@ spec:
   - name: kubesec-demo
     image: gcr.io/google-samples/node-hello:1.0
     securityContext:
-      readOnlyRootFilesystem: false
+      readOnlyRootFilesystem: true
       # uncomment to fail the KubeSec check
       capabilities:
         add:
