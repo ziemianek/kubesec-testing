@@ -64,7 +64,7 @@ jobs:
             MESSAGE=$(echo "$RESPONSE" | jq -r '.[0].message')
             SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
 
-            echo "$RESPONSE"
+            echo "[debug] RESPONSE: $RESPONSE"
 
             if [[ "$SCORE" -ge 0 ]]; then
               echo "✅ \`$file\` - $MESSAGE" >> comment.md
