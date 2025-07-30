@@ -30,52 +30,40 @@ jobs:
           docker run -d -p 8080:8080 kubesec:local http 8080
 
       - name: Get all changed yaml files
-        id: changed-markdown-files
+        id: changed-files
         # https://github.com/marketplace/actions/changed-files?version=v46.0.5
         uses: tj-actions/changed-files@6cb76d07bee4c9772c6882c06c37837bf82a04d3 # v46.0.5
         with:
+          # To compare changes between the current commit and the last pushed remote commit set `since_last_remote_commit: true`. e.g
+          since_last_remote_commit: true
           # Avoid using single or double quotes for multiline patterns
           files: |
             **/**.yaml
             **/**.yml
 
       - name: List all changed yaml files
-        if: steps.changed-markdown-files.outputs.any_changed == 'true'
+        if: steps.changed-files.outputs.any_changed == 'true'
         env:
-          ALL_CHANGED_FILES: ${{ steps.changed-markdown-files.outputs.all_changed_files }}
+          ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
         run: |
-          for file in ${ALL_CHANGED_FILES}; do
-            echo "$file was changed"
-          done
-
-      - name: Run KubeSec scanner
-        run: |
-          echo "### 🛡️ KubeSec Results (modified files only)" > comment.md
+          echo "### 🛡️ KubeSec Results" > comment.md
           echo "" >> comment.md
           HAS_FAILURE=0
 
           for file in $ALL_CHANGED_FILES; do
-            if [[ ! -f "$file" ]]; then
-              echo "⚠️ Skipping \`$file\` (not found)" >> comment.md
-              continue
-            fi
-
             if ! grep -qE 'apiVersion:|kind:' "$file"; then
-              echo "ℹ️ Skipping \`$file\` (not a Kubernetes manifest)" >> comment.md
-              echo "" >> comment.md
+              echo "ℹ️ Skipping \`$file\` (not a Kubernetes manifest)"
               continue
             fi
 
-            echo "🔍 **Scanning \`$file\`**" >> comment.md
             RESPONSE=$(curl -sSX POST --data-binary @"$file" http://localhost:8080/scan)
-
             MESSAGE=$(echo "$RESPONSE" | jq -r '.[0].message')
             SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
 
             if [[ "$SCORE" -ge 0 ]]; then
-              echo "✅ Passed - $MESSAGE (score: $SCORE)" >> comment.md
+              echo "✅ \`$file\` Passed - $MESSAGE (score: $SCORE)" >> comment.md
             else
-              echo "❌ Failed - $MESSAGE (score: $SCORE)" >> comment.md
+              echo "❌ \`$file\` Failed - $MESSAGE (score: $SCORE)" >> comment.md
               HAS_FAILURE=1
             fi
 
@@ -88,8 +76,6 @@ jobs:
             echo "</details>" >> comment.md
             echo "" >> comment.md
           done
-
-          echo "has_failure=$HAS_FAILURE" >> "$GITHUB_OUTPUT"
 
           if [[ "$HAS_FAILURE" -eq 1 ]]; then
             exit 1
