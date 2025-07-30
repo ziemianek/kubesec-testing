@@ -1,31 +1,46 @@
-name: KubeSec Scan
-
-on:
-  pull_request:
-    types: [opened, synchronize, reopened, edited]
-  workflow_dispatch:
-
 jobs:
   lint:
     name: Kubesec
     runs-on: ubuntu-latest
+    continue-on-error: true  # ✅ DO NOT block merging
     permissions:
       actions: read
       contents: read
       security-events: write
       pull-requests: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run kubesec scanner
-        # uses: controlplaneio/kubesec-action@main
-        # with:
-        #   input: file.yaml
-        #   exit-code: "0"
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Run kubesec scanner and format comment
         run: |
-          output=$(curl -sSX POST --data-binary @file.yaml https://v2.kubesec.io/scan)
-          echo $output > comment.md
+          echo "### 🛡️ KubeSec Results for \`file.yaml\`" > comment.md
+
+          RESPONSE=$(curl -sSX POST --data-binary @file.yaml https://v2.kubesec.io/scan)
+
+          VALID=$(echo "$RESPONSE" | jq -r '.[0].valid')
+          MESSAGE=$(echo "$RESPONSE" | jq -r '.[0].message')
+          SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
+
+          if [[ "$VALID" == "true" ]]; then
+            echo "✅ **KubeSec check passed** – $MESSAGE (score: $SCORE)" >> comment.md
+          else
+            echo "❌ **KubeSec check failed** – $MESSAGE (score: $SCORE)" >> comment.md
+          fi
+
+          echo "" >> comment.md
+          echo "\`\`\`json" >> comment.md
+          echo "$RESPONSE" | jq '.' >> comment.md
+          echo "\`\`\`" >> comment.md
+
+          # Exit with 1 if check failed
+          if [[ "$VALID" != "true" ]]; then
+            exit 1
+          fi
 
       - name: Comment results
         uses: mshick/add-pr-comment@v2
