@@ -24,11 +24,7 @@ jobs:
         #   exit-code: "0"
         run: |
           RESPONSE=(curl -sSX POST --data-binary @"file.yaml" https://v2.kubesec.io/scan)
-          echo "$RESPONSE" | jq '.' > result.json
-          echo "### 🛡️ KubeSec Results" > comment.md
-          echo "\`\`\`json" >> comment.md
-          cat result.json >> comment.md
-          echo "\`\`\`" >> comment.md
+          echo "$RESPONSE" > comment.md
 
       - name: Comment results
         uses: mshick/add-pr-comment@v2
