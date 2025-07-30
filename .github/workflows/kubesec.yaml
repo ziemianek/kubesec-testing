@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
+        run: sudo apt-get install -y jq
 
       - name: Build local KubeSec image
         run: |
@@ -75,8 +75,10 @@ jobs:
           else
             echo "No KubeSec container found."
           fi
-          echo "Cleanup complete."
 
+          echo "Removing temporary comment file..."
           rm -f comment.md
 
+          echo "Removing cloned KubeSec repository..."
           rm -rf kubesec
+          echo "Cleanup complete."
