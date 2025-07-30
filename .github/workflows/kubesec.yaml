@@ -1,3 +1,10 @@
+name: KubeSec Scan
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  workflow_dispatch:
+
 jobs:
   lint:
     name: Kubesec
