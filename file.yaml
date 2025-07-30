@@ -9,6 +9,6 @@ spec:
     securityContext:
       readOnlyRootFilesystem: true
       # uncomment to fail the KubeSec check
-      capabilities:
-        add:
-        - SYS_ADMIN
+      # capabilities:
+      #   add:
+      #   - SYS_ADMIN
