@@ -7,8 +7,11 @@ on:
 jobs:
   lint:
     name: Kubesec
+
     runs-on: ubuntu-latest
+
     continue-on-error: true  # DO NOT block merging
+
     permissions:
       actions: read
       contents: read
@@ -24,16 +27,35 @@ jobs:
         # https://github.com/marketplace/actions/changed-files?version=v46.0.5
         uses: tj-actions/changed-files@6cb76d07bee4c9772c6882c06c37837bf82a04d3 # v46.0.5
         with:
-          # To compare changes between the current commit and the last pushed remote commit set `since_last_remote_commit: true`. e.g
-          # since_last_remote_commit: true
-  
           # Avoid using single or double quotes for multiline patterns
           files: |
             **/**.yaml
             **/**.yml
 
+      - name: Filter Kubernetes manifests
+        id: manifests
+        env:
+          ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+        shell: bash
+        run: |
+          filtered_files=()
+
+          for file in $ALL_CHANGED_FILES; do
+            if grep -qE '^\s*apiVersion:' "$file" && grep -qE '^\s*kind:' "$file"; then
+              filtered_files+=("$file")
+              any_changed="true"
+              echo "Added \`$file\`"
+            else
+              echo "Skipped \`$file\` (not a Kubernetes manifest)"
+            fi
+          done
+
+          # Save the filtered list to GitHub output
+          echo "all_changed_files=${filtered_files[*]}" >> $GITHUB_OUTPUT
+          echo "any_changed=$any_changed" >> $GITHUB_OUTPUT
+
       - name: Build local KubeSec image
-        if: steps.changed-files.outputs.any_changed == 'true'
+        if: steps.manifests.outputs.any_changed == 'true'
         # mozna by raz zbudowac obraz i go uzywac np. pobierajac z artifactory?
         shell: bash
         run: |
@@ -43,14 +65,15 @@ jobs:
           docker run -d -p 8080:8080 kubesec:local http 8080
 
       - name: Install jq
-        if: steps.changed-files.outputs.any_changed == 'true'
+        if: steps.manifests.outputs.any_changed == 'true'
         shell: bash
         run: sudo apt-get install -y jq
 
       - name: Scan Kubernetes manifests
-        if: steps.changed-files.outputs.any_changed == 'true'
+        continue-on-error: true
+        if: steps.manifests.outputs.any_changed == 'true'
         env:
-          ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+          ALL_CHANGED_FILES: ${{ steps.manifests.outputs.all_changed_files }}
         shell: bash
         run: |
           echo "### 🛡️ KubeSec Results" > comment.md
@@ -59,13 +82,15 @@ jobs:
 
           for file in $ALL_CHANGED_FILES; do
             if ! grep -qE '^\s*apiVersion:' "$file" || ! grep -qE '^\s*kind:' "$file"; then
-              echo "ℹ️ Skipping \`$file\` (not a Kubernetes manifest)"
+              echo "ℹ️ Skipped \`$file\` (not a Kubernetes manifest)"
               continue
             fi
 
             RESPONSE=$(curl -sSX POST --data-binary @"$file" http://localhost:8080/scan)
             MESSAGE=$(echo "$RESPONSE" | jq -r '.[0].message')
             SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
+
+            echo "[debug] RESPONSE: $RESPONSE"
 
             if [[ "$SCORE" -ge 0 ]]; then
               echo "✅ \`$file\` - $MESSAGE" >> comment.md
@@ -87,17 +112,17 @@ jobs:
           done
 
           if [[ "$HAS_FAILURE" -eq 1 ]]; then
-            exit 1
+            exit 420
           fi
 
       - name: Comment results
         uses: mshick/add-pr-comment@v2
-        if: steps.changed-files.outputs.any_changed == 'true'
+        if: steps.manifests.outputs.any_changed == 'true'
         with:
           message-path: comment.md
 
       - name: Cleanup
-        if: steps.changed-files.outputs.any_changed == 'true'
+        if: steps.manifests.outputs.any_changed == 'true'
         shell: bash
         run: |
           echo "Cleaning up KubeSec container..."
