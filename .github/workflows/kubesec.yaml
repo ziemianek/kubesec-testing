@@ -9,7 +9,7 @@ jobs:
   lint:
     name: Kubesec
     runs-on: ubuntu-latest
-    continue-on-error: true  # ✅ DO NOT block merging
+    continue-on-error: true  # DO NOT block merging
     permissions:
       actions: read
       contents: read
@@ -29,14 +29,13 @@ jobs:
 
           RESPONSE=$(curl -sSX POST --data-binary @file.yaml https://v2.kubesec.io/scan)
 
-          VALID=$(echo "$RESPONSE" | jq -r '.[0].valid')
           MESSAGE=$(echo "$RESPONSE" | jq -r '.[0].message')
           SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
 
-          if [[ "$VALID" == "true" ]]; then
-            echo "✅ **KubeSec check passed** – $MESSAGE (score: $SCORE)" >> comment.md
+          if [[ "$SCORE" -ge 0 ]]; then
+          echo "✅ **KubeSec check passed** - $MESSAGE" >> comment.md
           else
-            echo "❌ **KubeSec check failed** – $MESSAGE (score: $SCORE)" >> comment.md
+          echo "❌ **KubeSec check failed** - $MESSAGE" >> comment.md
           fi
 
           echo "" >> comment.md
@@ -45,8 +44,8 @@ jobs:
           echo "\`\`\`" >> comment.md
 
           # Exit with 1 if check failed
-          if [[ "$VALID" != "true" ]]; then
-            exit 1
+          if [[ "$SCORE" -lt 0 ]]; then
+          exit 1
           fi
 
       - name: Comment results
