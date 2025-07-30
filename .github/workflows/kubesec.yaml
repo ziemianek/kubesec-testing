@@ -3,7 +3,6 @@ name: KubeSec Scan
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
-  workflow_dispatch:
 
 jobs:
   lint:
@@ -30,32 +29,70 @@ jobs:
           docker build -t kubesec:local .
           docker run -d -p 8080:8080 kubesec:local http 8080
 
+      - name: Get all changed yaml files
+        id: changed-markdown-files
+        # https://github.com/marketplace/actions/changed-files?version=v46.0.5
+        uses: tj-actions/changed-files@6cb76d07bee4c9772c6882c06c37837bf82a04d3 # v46.0.5
+        with:
+          # Avoid using single or double quotes for multiline patterns
+          files: |
+            **/**.yaml
+            **/**.yml
+
+      - name: List all changed yaml files
+        if: steps.changed-markdown-files.outputs.any_changed == 'true'
+        env:
+          ALL_CHANGED_FILES: ${{ steps.changed-markdown-files.outputs.all_changed_files }}
+        run: |
+          for file in ${ALL_CHANGED_FILES}; do
+            echo "$file was changed"
+          done
+
       - name: Run KubeSec scanner
         run: |
-          echo "### 🛡️ KubeSec Results for \`file.yaml\`" > comment.md
-
-          RESPONSE=$(curl -sSX POST --data-binary @file.yaml http://localhost:8080/scan)
-
-          MESSAGE=$(echo "$RESPONSE" | jq -r '.[0].message')
-          SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
-
-          if [[ "$SCORE" -ge 0 ]]; then
-          echo "✅ **KubeSec check passed** - $MESSAGE" >> comment.md
-          else
-          echo "❌ **KubeSec check failed** - $MESSAGE" >> comment.md
-          fi
-
+          echo "### 🛡️ KubeSec Results (modified files only)" > comment.md
           echo "" >> comment.md
-          echo "<details>" >> comment.md
-          echo "<summary>📄 See the details</summary>" >> comment.md
-          echo "<pre>" >> comment.md
-          echo "$RESPONSE" | jq '.' >> comment.md
-          echo "</pre>" >> comment.md
-          echo "</details>" >> comment.md
+          HAS_FAILURE=0
 
-          # Exit with 1 if check failed
-          if [[ "$SCORE" -lt 0 ]]; then
-          exit 1
+          for file in $ALL_CHANGED_FILES; do
+            if [[ ! -f "$file" ]]; then
+              echo "⚠️ Skipping \`$file\` (not found)" >> comment.md
+              continue
+            fi
+
+            if ! grep -qE 'apiVersion:|kind:' "$file"; then
+              echo "ℹ️ Skipping \`$file\` (not a Kubernetes manifest)" >> comment.md
+              echo "" >> comment.md
+              continue
+            fi
+
+            echo "🔍 **Scanning \`$file\`**" >> comment.md
+            RESPONSE=$(curl -sSX POST --data-binary @"$file" http://localhost:8080/scan)
+
+            MESSAGE=$(echo "$RESPONSE" | jq -r '.[0].message')
+            SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
+
+            if [[ "$SCORE" -ge 0 ]]; then
+              echo "✅ Passed - $MESSAGE (score: $SCORE)" >> comment.md
+            else
+              echo "❌ Failed - $MESSAGE (score: $SCORE)" >> comment.md
+              HAS_FAILURE=1
+            fi
+
+            echo "" >> comment.md
+            echo "<details>" >> comment.md
+            echo "<summary>📄 See full scan result</summary>" >> comment.md
+            echo "<pre>" >> comment.md
+            echo "$RESPONSE" | jq '.' >> comment.md
+            echo "</pre>" >> comment.md
+            echo "</details>" >> comment.md
+            echo "" >> comment.md
+          done
+
+          echo "has_failure=$HAS_FAILURE" >> "$GITHUB_OUTPUT"
+
+          if [[ "$HAS_FAILURE" -eq 1 ]]; then
+            exit 1
           fi
 
       - name: Comment results
