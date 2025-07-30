@@ -7,8 +7,11 @@ on:
 jobs:
   lint:
     name: Kubesec
+
     runs-on: ubuntu-latest
+
     continue-on-error: true  # DO NOT block merging
+
     permissions:
       actions: read
       contents: read
@@ -24,9 +27,6 @@ jobs:
         # https://github.com/marketplace/actions/changed-files?version=v46.0.5
         uses: tj-actions/changed-files@6cb76d07bee4c9772c6882c06c37837bf82a04d3 # v46.0.5
         with:
-          # To compare changes between the current commit and the last pushed remote commit set `since_last_remote_commit: true`. e.g
-          # since_last_remote_commit: true
-  
           # Avoid using single or double quotes for multiline patterns
           files: |
             **/**.yaml
@@ -63,6 +63,8 @@ jobs:
             RESPONSE=$(curl -sSX POST --data-binary @"$file" http://localhost:8080/scan)
             MESSAGE=$(echo "$RESPONSE" | jq -r '.[0].message')
             SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
+
+            echo "$RESPONSE"
 
             if [[ "$SCORE" -ge 0 ]]; then
               echo "✅ \`$file\` - $MESSAGE" >> comment.md
