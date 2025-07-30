@@ -68,13 +68,12 @@ jobs:
             SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
 
             if [[ "$SCORE" -ge 0 ]]; then
-              echo "✅ \`$file\` Passed - $MESSAGE" >> comment.md
+              echo "✅ \`$file\` - $MESSAGE" >> comment.md
             else
-              echo "❌ \`$file\` Failed - $MESSAGE" >> comment.md
+              echo "❌ \`$file\` - $MESSAGE" >> comment.md
               HAS_FAILURE=1
             fi
 
-            echo "---" >> comment.md
             echo "" >> comment.md
             echo "<details>" >> comment.md
             echo "<summary>📄 See full result</summary>" >> comment.md
@@ -83,6 +82,8 @@ jobs:
             echo "</pre>" >> comment.md
             echo "</details>" >> comment.md
             echo "" >> comment.md
+            echo "---" >> comment.md
+
           done
 
           if [[ "$HAS_FAILURE" -eq 1 ]]; then
