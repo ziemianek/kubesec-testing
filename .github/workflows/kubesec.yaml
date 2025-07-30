@@ -34,6 +34,7 @@ jobs:
 
       - name: Build local KubeSec image
         if: steps.changed-files.outputs.any_changed == 'true'
+        # mozna by raz zbudowac obraz i go uzywac np. pobierajac z artifactory?
         shell: bash
         run: |
           git clone https://github.com/controlplaneio/kubesec.git
