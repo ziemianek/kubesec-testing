@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod
+  labels:
+    app: nginx
+    environment: development
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.21
+    ports:
+    - containerPort: 80
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redis-pod
+  labels:
+    app: redis
+    environment: development
+spec:
+  containers:
+  - name: redis
+    image: redis:6.2-alpine
+    ports:
+    - containerPort: 6379
+    env:
+    - name: REDIS_PASSWORD
+      value: "mypassword"
+    resources:
+      requests:
+        memory: "32Mi"
+        cpu: "100m"
+      limits:
+        memory: "64Mi"
+        cpu: "200m"
+    volumeMounts:
+    - name: redis-storage
+      mountPath: /data
+  volumes:
+  - name: redis-storage
+    emptyDir: {}
