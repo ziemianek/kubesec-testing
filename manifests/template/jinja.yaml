@@ -6,6 +6,4 @@ metadata:
   namespace: {{ k8s_namespace_name }}
 type: Opaque
 stringData:
-{% for key, value in service_secret_vars.items() %}
   {{ key }}: '{{ value }}'
-{% endfor %}

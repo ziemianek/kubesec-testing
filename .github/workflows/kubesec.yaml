@@ -81,16 +81,12 @@ jobs:
           HAS_FAILURE=0
 
           for file in $ALL_CHANGED_FILES; do
-            if ! grep -qE '^\s*apiVersion:' "$file" || ! grep -qE '^\s*kind:' "$file"; then
-              echo "ℹ️ Skipped \`$file\` (not a Kubernetes manifest)"
-              continue
-            fi
-
             RESPONSE=$(curl -sSX POST --data-binary @"$file" http://localhost:8080/scan)
+            
+            echo "[debug] RESPONSE: $RESPONSE"
+
             MESSAGE=$(echo "$RESPONSE" | jq -r '.[0].message')
             SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
-
-            echo "[debug] RESPONSE: $RESPONSE"
 
             if [[ "$SCORE" -ge 0 ]]; then
               echo "✅ \`$file\` - $MESSAGE" >> comment.md
