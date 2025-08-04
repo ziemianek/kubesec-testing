@@ -62,7 +62,7 @@ jobs:
           git clone https://github.com/controlplaneio/kubesec.git
           cd kubesec
           docker build -t kubesec:local .
-          docker run -d -p 8080:8080 kubesec:local http 8080
+          docker run --rm -d -p 8080:8080 kubesec:local http 8080
 
       - name: Install jq
         if: steps.manifests.outputs.any_changed == 'true'
@@ -129,7 +129,6 @@ jobs:
           CONTAINER_ID=$(docker ps -q --filter ancestor=kubesec:local)
           if [ -n "$CONTAINER_ID" ]; then
             docker stop "$CONTAINER_ID"
-            docker rm "$CONTAINER_ID"
           else
             echo "No KubeSec container found."
           fi
