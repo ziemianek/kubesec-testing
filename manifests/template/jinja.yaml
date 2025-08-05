@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ k8s_service_configuration_secrets }}
+  namespace: {{ k8s_namespace_name }}
+type: Opaque
+stringData:
+  {{ key }}: '{{ value }}'
