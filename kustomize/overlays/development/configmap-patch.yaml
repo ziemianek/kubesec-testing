@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webapp-config
+data:
+  app.properties: |
+    app.name=Simple WebApp
+    app.version=1.0.0
+    app.environment=development
+    
+    # Database configuration
+    database.host=dev-db.local
+    database.port=5432
+    database.name=webapp_dev_db
+    
+    # Cache configuration
+    cache.enabled=false
+    cache.ttl=300
