@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: insecure-webapp-pod
+  labels:
+    app: insecure-webapp
+    version: v1.0
+  annotations:
+    description: "An insecurely configured pod with multiple security issues (for testing)"
+spec:
+  # No service account specified - will use default
+  # No pod security context
+  containers:
+  - name: webapp
+    image: nginx:latest  # Using latest tag is not recommended
+    # No container security context
+    ports:
+    - containerPort: 80
+      name: http
+      protocol: TCP
+    # No resource limits defined
+    # No health checks defined
+    volumeMounts:
+    - name: docker-socket
+      mountPath: /var/run/docker.sock  # Mounting Docker socket is dangerous
+    - name: host-root
+      mountPath: /host-root  # Mounting host root filesystem
+    env:
+    - name: SECRET_KEY
+      value: "hardcoded-secret-123"  # Hardcoded secrets are bad
+    - name: DATABASE_PASSWORD
+      value: "admin123"  # Another hardcoded secret
+  volumes:
+  - name: docker-socket
+    hostPath:
+      path: /var/run/docker.sock
+      type: Socket
+  - name: host-root
+    hostPath:
+      path: /
+      type: Directory
+  restartPolicy: Always
+  # automountServiceAccountToken defaults to true (not secure)
+  hostNetwork: true  # Using host network is risky
+  hostPID: true      # Using host PID namespace is risky
+  hostIPC: true      # Using host IPC namespace is risky

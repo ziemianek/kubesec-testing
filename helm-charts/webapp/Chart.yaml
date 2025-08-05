@@ -1,0 +1,16 @@
+apiVersion: v2
+name: webapp
+description: A Helm chart for a simple web application
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - webapp
+  - example
+  - demo
+home: https://github.com/ziemianek/kubesec-testing
+sources:
+  - https://github.com/ziemianek/kubesec-testing
+maintainers:
+  - name: ziemianek
+    email: maintainer@example.com
