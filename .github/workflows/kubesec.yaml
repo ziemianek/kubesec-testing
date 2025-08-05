@@ -7,11 +7,7 @@ on:
 jobs:
   lint:
     name: Kubesec
-
     runs-on: ubuntu-latest
-
-    continue-on-error: true  # DO NOT block merging
-
     permissions:
       actions: read
       contents: read
@@ -25,9 +21,9 @@ jobs:
       - name: Get all changed yaml files
         id: changed-files
         # https://github.com/marketplace/actions/changed-files?version=v46.0.5
+        # source code: https://github.com/tj-actions/changed-files
         uses: tj-actions/changed-files@6cb76d07bee4c9772c6882c06c37837bf82a04d3 # v46.0.5
         with:
-          # Avoid using single or double quotes for multiline patterns
           files: |
             **/**.yaml
             **/**.yml
@@ -41,6 +37,7 @@ jobs:
           filtered_files=()
 
           for file in $ALL_CHANGED_FILES; do
+            # Check if file contains both 'apiVersion:' and 'kind:' fields
             if grep -qE '^\s*apiVersion:' "$file" && grep -qE '^\s*kind:' "$file"; then
               filtered_files+=("$file")
               any_changed="true"
@@ -56,7 +53,7 @@ jobs:
 
       - name: Build local KubeSec image
         if: steps.manifests.outputs.any_changed == 'true'
-        # mozna by raz zbudowac obraz i go uzywac np. pobierajac z artifactory?
+        # TODO: Consider building image once and storing in registry
         shell: bash
         run: |
           git clone https://github.com/controlplaneio/kubesec.git
@@ -82,12 +79,12 @@ jobs:
 
           for file in $ALL_CHANGED_FILES; do
             RESPONSE=$(curl -sSX POST --data-binary @"$file" http://localhost:8080/scan)
-            
             echo "[debug] RESPONSE: $RESPONSE"
 
             MESSAGE=$(echo "$RESPONSE" | jq -r '.[0].message')
             SCORE=$(echo "$RESPONSE" | jq -r '.[0].score')
 
+            # Positive or zero score = pass, negative score = security issues found
             if [[ "$SCORE" -ge 0 ]]; then
               echo "✅ \`$file\` - $MESSAGE" >> comment.md
             else
@@ -112,6 +109,8 @@ jobs:
           fi
 
       - name: Comment results
+        # https://github.com/marketplace/actions/add-pr-comment
+        # source: https://github.com/mshick/add-pr-comment
         uses: mshick/add-pr-comment@v2
         if: steps.manifests.outputs.any_changed == 'true'
         with:
