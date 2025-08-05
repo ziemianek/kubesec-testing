@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: webapp-development
+
+namespace: webapp-dev
+
+bases:
+- ../../base
+
+namePrefix: dev-
+
+commonLabels:
+  environment: development
+
+patchesStrategicMerge:
+- deployment-patch.yaml
+- configmap-patch.yaml
+
+replicas:
+- name: webapp
+  count: 1
+
+images:
+- name: nginx
+  newTag: 1.21-alpine
